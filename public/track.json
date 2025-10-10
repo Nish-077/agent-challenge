@@ -1,0 +1,53 @@
+{
+  "tempo": 80,
+  "key": "C_minor",
+  "timeline": [
+    "p1",
+    "p1"
+  ],
+  "patterns": {
+    "p1": {
+      "id": "p1",
+      "length": 4,
+      "tracks": {
+        "drums": {
+          "instrument": "drums",
+          "style": "lofi_loop_1"
+        },
+        "piano": {
+          "instrument": "piano",
+          "notes": [
+            "C3",
+            "D3",
+            "E3",
+            "G3"
+          ]
+        },
+        "bass": {
+          "instrument": "bass",
+          "notes": [
+            "C2",
+            "Eb2",
+            "F2",
+            null
+          ]
+        }
+      }
+    },
+    "p2": {
+      "id": "p2",
+      "length": 4,
+      "tracks": {
+        "bass": {
+          "instrument": "bass",
+          "notes": [
+            "C2",
+            "Eb2",
+            "F2",
+            null
+          ]
+        }
+      }
+    }
+  }
+}

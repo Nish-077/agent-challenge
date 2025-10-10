@@ -1,256 +1,195 @@
 "use client";
 
-import { useCoAgent, useCopilotAction } from "@copilotkit/react-core";
-import { CopilotKitCSSProperties, CopilotSidebar } from "@copilotkit/react-ui";
-import { useState } from "react";
-import { AgentState as AgentStateSchema } from "@/mastra/agents";
-import { z } from "zod";
-import { WeatherToolResult } from "@/mastra/tools";
+import { useState, useEffect, useRef } from "react";
+import { getAudioEngine, Track } from "@/lib/AudioEngine";
 
-type AgentState = z.infer<typeof AgentStateSchema>;
+export default function LofiBeatGenerator() {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [prompt, setPrompt] = useState("");
+  const [isComposing, setIsComposing] = useState(false);
+  const [track, setTrack] = useState<Track | null>(null);
+  const [audioEngine] = useState(() => getAudioEngine());
+  const [currentStep, setCurrentStep] = useState<number>(0);
+  const [currentPattern, setCurrentPattern] = useState<string>("");
+  
+  const isPlayingRef = useRef(isPlaying);
+  const isComposingRef = useRef(isComposing);
+  
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+  
+  useEffect(() => {
+    isComposingRef.current = isComposing;
+  }, [isComposing]);
 
-export default function CopilotKitPage() {
-  const [themeColor, setThemeColor] = useState("#6366f1");
+  useEffect(() => {
+    loadTrack();
+    
+    audioEngine.setOnStepChange((step, patternId) => {
+      setCurrentStep(step);
+      setCurrentPattern(patternId);
+    });
 
-  // 🪁 Frontend Actions: https://docs.copilotkit.ai/guides/frontend-actions
-  useCopilotAction({
-    name: "setThemeColor",
-    parameters: [{
-      name: "themeColor",
-      description: "The theme color to set. Make sure to pick nice colors.",
-      required: true,
-    }],
-    handler({ themeColor }) {
-      setThemeColor(themeColor);
-    },
-  });
+    console.log("Setting up SSE connection for track updates");
+    const eventSource = new EventSource("/api/track-updates");
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log("SSE received:", data);
+      
+      if (data.type === "update") {
+        if (!isPlayingRef.current && !isComposingRef.current) {
+          console.log("Track updated via SSE, reloading...");
+          loadTrack();
+        } else {
+          console.log("Track updated but skipping reload (playing or composing)");
+        }
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error("SSE error:", error);
+      eventSource.close();
+    };
+
+    return () => {
+      console.log("Closing SSE connection");
+      eventSource.close();
+    };
+  }, [audioEngine]);
+
+  const loadTrack = async () => {
+    try {
+      const response = await fetch("/track.json");
+      const data = await response.json();
+      setTrack(data);
+      await audioEngine.loadTrack(data);
+      console.log("Track loaded:", data);
+    } catch (error) {
+      console.error("Error loading track:", error);
+    }
+  };
+
+  const handlePlay = async () => {
+    if (!track) return;
+    if (isPlaying) {
+      audioEngine.pause();
+      setIsPlaying(false);
+    } else {
+      await audioEngine.play();
+      setIsPlaying(true);
+    }
+  };
+
+  const handleStop = () => {
+    audioEngine.stop();
+    setIsPlaying(false);
+    setCurrentStep(0);
+    setCurrentPattern("");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!prompt.trim()) return;
+    setIsComposing(true);
+    
+    try {
+      const response = await fetch('/api/music', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+
+      const data = await response.json();
+      console.log('Full API response:', data);
+
+      if (data.success) {
+        const toolResults = data.fullResult?.toolResults || [];
+        const hasSuccess = toolResults.some((result: any) => result.payload?.result?.success);
+        const composerMessage = toolResults[0]?.payload?.result?.message;
+        
+        if (hasSuccess) {
+          console.log('✅ Composition updated:', composerMessage);
+        } else {
+          alert(composerMessage || 'Command processed but no changes made');
+        }
+        await loadTrack();
+      } else {
+        alert(`Error: ${data.details || data.error || 'Failed to process request'}`);
+      }
+    } catch (error) {
+      console.error('Error calling music API:', error);
+      alert('Failed to connect to music agent');
+    } finally {
+      setIsComposing(false);
+      setPrompt("");
+    }
+  };
 
   return (
-    <main style={{ "--copilot-kit-primary-color": themeColor } as CopilotKitCSSProperties}>
-      <YourMainContent themeColor={themeColor} />
-      <CopilotSidebar
-        clickOutsideToClose={false}
-        defaultOpen={true}
-        labels={{
-          title: "Popup Assistant",
-          initial: "👋 Hi, there! You're chatting with an agent. This agent comes with a few tools to get you started.\n\nFor example you can try:\n- **Frontend Tools**: \"Set the theme to orange\"\n- **Shared State**: \"Write a proverb about AI\"\n- **Generative UI**: \"Get the weather in SF\"\n\nAs you interact with the agent, you'll see the UI update in real-time to reflect the agent's **state**, **tool calls**, and **progress**."
-        }}
-      />
+    <main className="h-screen w-screen flex flex-col bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900">
+      <section className="bg-black/30 backdrop-blur-md p-4 border-b border-white/10">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-2xl font-bold text-white mb-4">🎵 AI Lo-Fi Beats Generator</h1>
+          <div className="flex items-center gap-4">
+            <button onClick={handlePlay} disabled={!track || track.timeline.length === 0} className="px-6 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all backdrop-blur-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+              {isPlaying ? "⏸ Pause" : "▶ Play"}
+            </button>
+            <button onClick={handleStop} disabled={!isPlaying} className="px-6 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all backdrop-blur-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+              ⏹ Stop
+            </button>
+            <div className="flex-1">
+              <div className="text-white/70 text-sm mb-1">Timeline</div>
+              <div className="flex gap-2">
+                {track?.timeline.map((patternId, idx) => (
+                  <div key={idx} className={`px-4 py-2 rounded-lg transition-all ${idx === currentStep ? "bg-white text-purple-900 font-bold scale-110" : "bg-white/20 text-white"}`}>
+                    {patternId}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="flex-1 p-8 overflow-auto">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-xl font-bold text-white mb-4">Pattern Breakdown:</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {track && Object.entries(track.patterns).map(([patternId, pattern]) => (
+              <div key={patternId} className={`bg-white/10 backdrop-blur-md p-6 rounded-xl border-2 transition-all ${patternId === currentPattern ? "border-white scale-105" : "border-white/20"}`}>
+                <h3 className="text-lg font-bold text-white mb-3">Pattern: {patternId}</h3>
+                {Object.entries(pattern.tracks).map(([instrument, trackData]) => (
+                  <div key={instrument} className="mb-3">
+                    <div className="text-white/70 text-sm mb-1">{instrument}: {trackData.style || ""}</div>
+                    {trackData.notes && (
+                      <div className="flex gap-1">
+                        {trackData.notes.map((note, idx) => (
+                          <div key={idx} className={`w-12 h-8 rounded flex items-center justify-center text-xs ${note ? "bg-purple-500 text-white" : "bg-white/10 text-white/30"}`}>
+                            {note || "–"}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-black/30 backdrop-blur-md p-6 border-t border-white/10">
+        <div className="max-w-7xl mx-auto">
+          <form onSubmit={handleSubmit} className="flex gap-4">
+            <input type="text" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Tell the AI what to compose... (e.g., 'add bass to p1', 'create a sad pattern p4')" className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 backdrop-blur-sm" disabled={isComposing} />
+            <button type="submit" disabled={isComposing || !prompt.trim()} className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              {isComposing ? "🎵 Composing..." : "🎹 Compose"}
+            </button>
+          </form>
+        </div>
+      </section>
     </main>
-  );
-}
-
-function YourMainContent({ themeColor }: { themeColor: string }) {
-  // 🪁 Shared State: https://docs.copilotkit.ai/coagents/shared-state
-  const { state, setState } = useCoAgent<AgentState>({
-    name: "weatherAgent",
-    initialState: {
-      proverbs: [
-        "CopilotKit may be new, but its the best thing since sliced bread.",
-      ],
-    },
-  })
-
-  //🪁 Generative UI: https://docs.copilotkit.ai/coagents/generative-ui
-  useCopilotAction({
-    name: "weatherTool",
-    description: "Get the weather for a given location.",
-    available: "frontend",
-    parameters: [
-      { name: "location", type: "string", required: true },
-    ],
-    render: ({ args, result, status }) => {
-      return <WeatherCard
-        location={args.location}
-        themeColor={themeColor}
-        result={result}
-        status={status}
-      />
-    },
-  });
-
-  useCopilotAction({
-    name: "updateWorkingMemory",
-    available: "frontend",
-    render: ({ args }) => {
-      return <div style={{ backgroundColor: themeColor }} className="rounded-2xl max-w-md w-full text-white p-4">
-        <p>✨ Memory updated</p>
-        <details className="mt-2">
-          <summary className="cursor-pointer text-white">See updates</summary>
-          <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }} className="overflow-x-auto text-sm bg-white/20 p-4 rounded-lg mt-2">
-            {JSON.stringify(args, null, 2)}
-          </pre>
-        </details>
-      </div>
-    },
-  });
-
-  return (
-    <div
-      style={{ backgroundColor: themeColor }}
-      className="h-screen w-screen flex justify-center items-center flex-col transition-colors duration-300"
-    >
-      <div className="bg-white/20 backdrop-blur-md p-8 rounded-2xl shadow-xl max-w-2xl w-full">
-        <h1 className="text-4xl font-bold text-white mb-2 text-center">Proverbs</h1>
-        <p className="text-gray-200 text-center italic mb-6">This is a demonstrative page, but it could be anything you want! 🪁</p>
-        <hr className="border-white/20 my-6" />
-        <div className="flex flex-col gap-3">
-          {state.proverbs?.map((proverb, index) => (
-            <div
-              key={index}
-              className="bg-white/15 p-4 rounded-xl text-white relative group hover:bg-white/20 transition-all"
-            >
-              <p className="pr-8">{proverb}</p>
-              <button
-                onClick={() => setState({
-                  ...state,
-                  proverbs: state.proverbs?.filter((_, i) => i !== index),
-                })}
-                className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity 
-                  bg-red-500 hover:bg-red-600 text-white rounded-full h-6 w-6 flex items-center justify-center"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
-        {state.proverbs?.length === 0 && <p className="text-center text-white/80 italic my-8">
-          No proverbs yet. Ask the assistant to add some!
-        </p>}
-      </div>
-    </div>
-  );
-}
-
-// Weather card component where the location and themeColor are based on what the agent
-// sets via tool calls.
-function WeatherCard({
-  location,
-  themeColor,
-  result,
-  status
-}: {
-  location?: string,
-  themeColor: string,
-  result: WeatherToolResult,
-  status: "inProgress" | "executing" | "complete"
-}) {
-  if (status !== "complete") {
-    return (
-      <div
-        className="rounded-xl shadow-xl mt-6 mb-4 max-w-md w-full"
-        style={{ backgroundColor: themeColor }}
-      >
-        <div className="bg-white/20 p-4 w-full">
-          <p className="text-white animate-pulse">Loading weather for {location}...</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div
-      style={{ backgroundColor: themeColor }}
-      className="rounded-xl shadow-xl mt-6 mb-4 max-w-md w-full"
-    >
-      <div className="bg-white/20 p-4 w-full">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-xl font-bold text-white capitalize">{location}</h3>
-            <p className="text-white">Current Weather</p>
-          </div>
-          <WeatherIcon conditions={result?.conditions} />
-        </div>
-
-        <div className="mt-4 flex items-end justify-between">
-          <div className="text-3xl font-bold text-white">
-            <span className="">
-              {result?.temperature}° C
-            </span>
-            <span className="text-sm text-white/50">
-              {" / "}
-              {((result?.temperature * 9) / 5 + 32).toFixed(1)}° F
-            </span>
-          </div>
-          <div className="text-sm text-white">{result?.conditions}</div>
-        </div>
-
-        <div className="mt-4 pt-4 border-t border-white">
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div>
-              <p className="text-white text-xs">Humidity</p>
-              <p className="text-white font-medium">{result?.humidity}%</p>
-            </div>
-            <div>
-              <p className="text-white text-xs">Wind</p>
-              <p className="text-white font-medium">{result?.windSpeed} mph</p>
-            </div>
-            <div>
-              <p className="text-white text-xs">Feels Like</p>
-              <p className="text-white font-medium">{result?.feelsLike}°</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function WeatherIcon({ conditions }: { conditions: string }) {
-  if (!conditions) return null;
-
-  if (
-    conditions.toLowerCase().includes("clear") ||
-    conditions.toLowerCase().includes("sunny")
-  ) {
-    return <SunIcon />;
-  }
-
-  if (
-    conditions.toLowerCase().includes("rain") ||
-    conditions.toLowerCase().includes("drizzle") ||
-    conditions.toLowerCase().includes("snow") ||
-    conditions.toLowerCase().includes("thunderstorm")
-  ) {
-    return <RainIcon />;
-  }
-
-  if (
-    conditions.toLowerCase().includes("fog") ||
-    conditions.toLowerCase().includes("cloud") ||
-    conditions.toLowerCase().includes("overcast")
-  ) {
-    return <CloudIcon />;
-  }
-
-  return <CloudIcon />;
-}
-
-// Simple sun icon for the weather card
-function SunIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-14 h-14 text-yellow-200">
-      <circle cx="12" cy="12" r="5" />
-      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" strokeWidth="2" stroke="currentColor" />
-    </svg>
-  );
-}
-
-function RainIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-14 h-14 text-blue-200">
-      {/* Cloud */}
-      <path d="M7 15a4 4 0 0 1 0-8 5 5 0 0 1 10 0 4 4 0 0 1 0 8H7z" fill="currentColor" opacity="0.8" />
-      {/* Rain drops */}
-      <path d="M8 18l2 4M12 18l2 4M16 18l2 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
-    </svg>
-  );
-}
-
-function CloudIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-14 h-14 text-gray-200">
-      <path d="M7 15a4 4 0 0 1 0-8 5 5 0 0 1 10 0 4 4 0 0 1 0 8H7z" fill="currentColor" />
-    </svg>
   );
 }
