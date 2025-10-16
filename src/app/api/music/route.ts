@@ -3,8 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt } = await req.json();
-    console.log('Received prompt:', prompt);
+    const { prompt, mode = 'composer' } = await req.json();
 
     if (!prompt) {
       return NextResponse.json(
@@ -14,7 +13,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Get the music agent
-    console.log('Getting music agent...');
     const agent = mastra.getAgent('musicAgent');
 
     if (!agent) {
@@ -24,33 +22,34 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log('Calling agent.generateVNext() with maxSteps: 5...');
-    // Generate a response from the agent using VNext for v2 models
-    // maxSteps allows the agent to make multiple tool calls in sequence
-    // toolChoice: 'auto' lets the model continue across steps
+    
+    const maxSteps = 20;
+    
+    console.log('\n🎵 === AGENT REQUEST ===');
+    console.log('Mode:', mode.toUpperCase());
+    console.log('Prompt:', prompt);
+    console.log('Max Steps:', maxSteps);
+    console.log('======================\n');
+    
     const result = await agent.generateVNext(prompt, {
-      maxSteps: 5,
-      toolChoice: 'auto', // Let model decide when to use tools (can continue across steps)
-      onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
-        console.log('=== Step finished ===');
-        console.log('Tool calls in this step:', toolCalls?.length || 0);
-        if (toolCalls && toolCalls.length > 0) {
-          toolCalls.forEach((tc: any, idx) => {
-            console.log(`  Tool ${idx + 1}: ${tc.toolName || 'unknown'}`);
-          });
-        }
-        console.log('Finish reason:', finishReason);
-        console.log('Has more steps:', finishReason !== 'stop');
-        console.log('=====================');
-      },
+      maxSteps, // Producer=20 (compose full tracks), Composer=2 (quick edits)
+      toolChoice: 'auto', // Force tool calls
+      // Memory disabled - will add back later if needed
     });
-    console.log('\n=== FINAL RESULT ===');
-    console.log('Total steps taken:', result.steps?.length || 0);
+
+    console.log('\n📊 === AGENT COMPLETE ===');
+    console.log('Finish Reason:', result.finishReason);
     console.log('Total tool calls:', result.toolCalls?.length || 0);
-    console.log('All tool calls:', JSON.stringify(result.toolCalls, null, 2));
-    console.log('Result text:', result.text);
-    console.log('===================\n');
+    
+    if (result.toolCalls && result.toolCalls.length > 0) {
+      console.log('\n🔧 Tool Call Summary:');
+      result.toolCalls.forEach((call: any, i: number) => {
+        console.log(`  ${i + 1}. ${call.toolName || 'unknown'} - ${call.result?.success ? '✅' : '❌'}`);
+      });
+    } else {
+      console.log('⚠️  No tool calls were made (agent responded with text only)');
+    }
+    console.log('========================\n');
 
     return NextResponse.json({
       success: true,

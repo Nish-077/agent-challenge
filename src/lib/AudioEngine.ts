@@ -13,6 +13,7 @@ export interface Track {
 export interface Pattern {
   id: string;
   length: number;
+  tempo?: number; // Optional per-pattern tempo override
   tracks: {
     [instrument: string]: InstrumentTrack;
   };
@@ -22,6 +23,8 @@ export interface InstrumentTrack {
   instrument: string;
   notes?: (string | null)[];
   style?: string;
+  volume?: number;
+  muted?: boolean;
 }
 
 export class AudioEngine {
@@ -30,7 +33,7 @@ export class AudioEngine {
   private currentTrack: Track | null = null;
   private isInitialized = false;
   private currentStep = 0;
-  private onStepChange?: (step: number, patternId: string) => void;
+  private onStepChange?: (timelineStep: number, patternId: string, patternStep: number) => void;
 
   constructor() {
     this.synths = new Map();
@@ -39,8 +42,9 @@ export class AudioEngine {
 
   /**
    * Set callback for when the playback step changes
+   * @param callback - receives (timelineStep, patternId, patternStep/noteIndex)
    */
-  setOnStepChange(callback: (step: number, patternId: string) => void) {
+  setOnStepChange(callback: (timelineStep: number, patternId: string, patternStep: number) => void) {
     this.onStepChange = callback;
   }
 
@@ -110,7 +114,6 @@ export class AudioEngine {
     await Tone.start();
     this.initializeSynths(); // Initialize synths after Tone.start()
     this.isInitialized = true;
-    console.log("Audio engine initialized");
   }
 
   /**
@@ -126,7 +129,8 @@ export class AudioEngine {
 
     // Stop any existing sequence
     if (this.sequence) {
-      this.sequence.stop();
+      // Stop immediately (time = 0) to avoid negative time errors
+      this.sequence.stop(0);
       this.sequence.dispose();
     }
 
@@ -145,19 +149,30 @@ export class AudioEngine {
     const { timeline, patterns } = this.currentTrack;
 
     // Calculate total number of steps across all patterns in timeline
-    // Each pattern has its own length (number of notes)
+    // Use the actual notes array length, not pattern.length
     let totalSteps = 0;
     const stepToTimelineMap: { timelineIndex: number; patternStep: number }[] = [];
     
     timeline.forEach((patternId, timelineIndex) => {
       const pattern = patterns[patternId];
       if (pattern) {
-        for (let i = 0; i < pattern.length; i++) {
+        // Find the longest notes array in this pattern's tracks
+        let maxSteps = pattern.length; // Default fallback
+        Object.values(pattern.tracks).forEach((track) => {
+          if (track.notes && track.notes.length > maxSteps) {
+            maxSteps = track.notes.length;
+          }
+        });
+        
+        for (let i = 0; i < maxSteps; i++) {
           stepToTimelineMap.push({ timelineIndex, patternStep: i });
           totalSteps++;
         }
       }
     });
+
+    // Track the last pattern to detect tempo changes
+    let lastPatternId: string | null = null;
     
     this.sequence = new Tone.Sequence(
       (time, step) => {
@@ -167,14 +182,27 @@ export class AudioEngine {
 
         if (!pattern) return;
 
-        console.log('Playing timeline step:', timelineIndex, 'pattern:', patternId, 'note step:', patternStep);
+        // Handle per-pattern tempo changes
+        // Only change tempo at the start of a new pattern (patternStep === 0) and if pattern changed
+        if (patternStep === 0 && patternId !== lastPatternId) {
+          const targetTempo = pattern.tempo ?? this.currentTrack!.tempo;
+          const currentTempo = Tone.Transport.bpm.value;
+          
+          if (currentTempo !== targetTempo) {
+            // Smooth tempo transition over the duration of one measure (4 quarter notes)
+            // This prevents jarring tempo jumps
+            Tone.Transport.bpm.rampTo(targetTempo, "1m", time);
+          }
+          
+          lastPatternId = patternId;
+        }
 
-        // Notify UI about current timeline step
+        // Notify UI about current timeline step and note position
         this.currentStep = timelineIndex;
         if (this.onStepChange) {
           // Schedule the callback slightly ahead so UI updates in sync
           Tone.Draw.schedule(() => {
-            this.onStepChange?.(timelineIndex, patternId);
+            this.onStepChange?.(timelineIndex, patternId, patternStep);
           }, time);
         }
 
@@ -190,7 +218,6 @@ export class AudioEngine {
     this.sequence.loop = true;
     this.sequence.loopStart = 0;
     this.sequence.loopEnd = totalSteps;
-    console.log('Sequence created with', timeline.length, 'timeline patterns,', totalSteps, 'total steps, loop:', this.sequence.loop);
   }
 
   /**
@@ -231,7 +258,6 @@ export class AudioEngine {
     await this.initialize();
     
     if (this.sequence) {
-      console.log('Starting playback - sequence.loop:', this.sequence.loop);
       this.sequence.start(0);
     }
     
@@ -291,6 +317,7 @@ export class AudioEngine {
    */
   dispose() {
     if (this.sequence) {
+      this.sequence.stop(0);
       this.sequence.dispose();
     }
     this.synths.forEach((synth) => synth.dispose());

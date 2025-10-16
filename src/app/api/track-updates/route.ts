@@ -9,8 +9,6 @@ export async function GET(request: NextRequest) {
 
   const stream = new ReadableStream({
     start(controller) {
-      console.log("SSE: Client connected to track updates");
-
       // Send initial connection message
       controller.enqueue(
         encoder.encode(`data: ${JSON.stringify({ type: "connected" })}\n\n`)
@@ -21,7 +19,6 @@ export async function GET(request: NextRequest) {
       
       const watcher = watch(trackPath, (eventType) => {
         if (eventType === "change") {
-          console.log("SSE: track.json changed, notifying client");
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ type: "update" })}\n\n`)
           );
@@ -30,7 +27,6 @@ export async function GET(request: NextRequest) {
 
       // Cleanup on client disconnect
       request.signal.addEventListener("abort", () => {
-        console.log("SSE: Client disconnected");
         watcher.close();
         controller.close();
       });
