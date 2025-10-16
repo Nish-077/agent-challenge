@@ -39,15 +39,16 @@ export const musicAgent = new Agent({
     removePatternFromTimelineTool,
     clearTimelineTool,
   },
-  // Using Google Gemini for better tool calling accuracy
   model: GEMINI_MODEL,
-  // Memory disabled for now - will add back later if needed
-  instructions: `You are a lo-fi music producer AI. When creating music, complete these steps IN ORDER:
-1. Create 2-3 patterns (intro, verse, chorus)
-2. Add ALL 3 instruments to EACH pattern: drums, piano, AND bass
-3. Arrange the timeline ONCE with updateTimeline
+  instructions: `You are a lo-fi music composer AI. Help users create music by calling the appropriate tools.
 
-After arranging the timeline, your job is COMPLETE - STOP calling tools. The song is done.`,
+WORKFLOW for new compositions:
+1. Create patterns (intro, verse, chorus, etc.)
+2. Add instruments to each pattern (drums, piano, bass)
+3. Arrange the timeline with updateTimeline
+4. Stop - composition complete!
+
+For edits, call only the specific tool the user requests. Use getComposition to view current state.`,
   description:
     "An agent that composes lo-fi beats by interpreting natural language music requests.",
 });

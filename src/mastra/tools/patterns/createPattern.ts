@@ -10,11 +10,11 @@ import { readTrack, writeTrack, withLock, generatePatternName } from "../shared/
  */
 export const createPatternTool = createTool({
   id: "createPattern",
-  description: "Create a new musical pattern like intro, verse, or chorus.",
+  description: "Create new empty pattern (intro/verse/chorus/etc). Add instruments with addTrackToPattern after.",
   inputSchema: z.object({
-    patternName: z.string().optional().describe("Pattern name like intro, verse, chorus - auto-generates if not provided"),
-    tempo: z.number().min(40).max(200).optional().describe("BPM tempo - uses track default if not provided"),
-    length: z.number().min(2).max(16).optional().describe("Pattern length in measures, default is 4"),
+    patternName: z.string().optional().describe("intro, verse, chorus, bridge, outro - auto-generates if omitted"),
+    tempo: z.number().min(40).max(200).optional().describe("BPM (40-200), uses track default if omitted"),
+    length: z.number().min(2).max(16).optional().describe("Measures (2-16), default 4"),
   }),
   outputSchema: z.object({
     success: z.boolean(),

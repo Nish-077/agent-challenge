@@ -19,16 +19,29 @@ export interface Pattern {
   };
 }
 
+export interface DrumPattern {
+  kick: number[];
+  snare: number[];
+  hihat: number[];
+  intensity: "low" | "medium" | "high";
+}
+
 export interface InstrumentTrack {
   instrument: string;
-  notes?: (string | null)[];
-  style?: string;
+  notes?: (string | string[] | null)[]; // Support both single notes and chord arrays
+  style?: string; // Legacy - will be removed
+  drumPattern?: DrumPattern;
   volume?: number;
   muted?: boolean;
 }
 
 export class AudioEngine {
-  private synths: Map<string, Tone.PolySynth | Tone.Synth | Tone.NoiseSynth | Tone.MembraneSynth>;
+  private synths: Map<string, Tone.PolySynth | Tone.Synth | Tone.NoiseSynth | Tone.MembraneSynth | Tone.MetalSynth>;
+  private drumSynths: {
+    kick: Tone.MembraneSynth;
+    snare: Tone.NoiseSynth;
+    hihat: Tone.MetalSynth;
+  } | null = null;
   private sequence: Tone.Sequence | null = null;
   private currentTrack: Track | null = null;
   private isInitialized = false;
@@ -80,15 +93,44 @@ export class AudioEngine {
       volume: -6,
     }).toDestination();
 
-    // Drums - NoiseSynth for drum hits
-    const drums = new Tone.NoiseSynth({
-      noise: { type: "white" },
+    // Kick Drum - MembraneSynth for punchy kicks
+    const kick = new Tone.MembraneSynth({
+      pitchDecay: 0.05,
+      octaves: 10,
+      oscillator: { type: "sine" },
+      envelope: {
+        attack: 0.001,
+        decay: 0.4,
+        sustain: 0.01,
+        release: 1.4,
+      },
+      volume: -8,
+    }).toDestination();
+
+    // Snare Drum - NoiseSynth for snappy snare
+    const snare = new Tone.NoiseSynth({
+      noise: { type: "pink" },
       envelope: {
         attack: 0.001,
         decay: 0.2,
         sustain: 0,
+        release: 0.2,
       },
       volume: -10,
+    }).toDestination();
+
+    // Hi-hat - MetalSynth for metallic hi-hat sound
+    const hihat = new Tone.MetalSynth({
+      envelope: {
+        attack: 0.001,
+        decay: 0.05,
+        release: 0.05,
+      },
+      harmonicity: 5.1,
+      modulationIndex: 32,
+      resonance: 4000,
+      octaves: 1.5,
+      volume: -15,
     }).toDestination();
 
     // Add reverb for lo-fi effect
@@ -102,7 +144,9 @@ export class AudioEngine {
 
     this.synths.set("piano", piano);
     this.synths.set("bass", bass);
-    this.synths.set("drums", drums);
+    
+    // Store drum synths separately for pattern-based triggering
+    this.drumSynths = { kick, snare, hihat };
   }
 
   /**
@@ -224,24 +268,57 @@ export class AudioEngine {
    * Play a single instrument track at a specific step
    */
   private playInstrumentTrack(track: InstrumentTrack, stepIndex: number, time: number) {
+    // Handle drum patterns (new system)
+    if (track.instrument === "drums" && track.drumPattern && this.drumSynths) {
+      const pattern = track.drumPattern;
+      
+      // Play kick if pattern has a hit at this step
+      if (pattern.kick[stepIndex]) {
+        const velocity = pattern.kick[stepIndex];
+        this.drumSynths.kick.triggerAttackRelease("C1", "16n", time, velocity);
+      }
+      
+      // Play snare if pattern has a hit at this step
+      if (pattern.snare[stepIndex]) {
+        const velocity = pattern.snare[stepIndex];
+        this.drumSynths.snare.triggerAttackRelease("16n", time, velocity);
+      }
+      
+      // Play hi-hat if pattern has a hit at this step
+      if (pattern.hihat[stepIndex]) {
+        const velocity = pattern.hihat[stepIndex];
+        this.drumSynths.hihat.triggerAttackRelease("16n", time, velocity);
+      }
+      
+      return;
+    }
+
+    // Handle note-based tracks (piano, bass)
     const synth = this.synths.get(track.instrument);
     if (!synth) return;
 
-    // Handle note-based tracks (piano, bass)
     if (track.notes && track.notes[stepIndex]) {
       const note = track.notes[stepIndex];
       if (note !== null) {
-        if (synth instanceof Tone.PolySynth) {
-          synth.triggerAttackRelease(note, "8n", time);
-        } else if (synth instanceof Tone.MembraneSynth) {
-          synth.triggerAttackRelease(note, "8n", time);
+        // Handle chord arrays (piano playing full chords)
+        if (Array.isArray(note)) {
+          if (synth instanceof Tone.PolySynth) {
+            synth.triggerAttackRelease(note, "2n", time); // Longer duration for chords
+          }
+        } 
+        // Handle single notes (bass or arpeggiated piano)
+        else {
+          if (synth instanceof Tone.PolySynth) {
+            synth.triggerAttackRelease(note, "8n", time);
+          } else if (synth instanceof Tone.MembraneSynth) {
+            synth.triggerAttackRelease(note, "8n", time);
+          }
         }
       }
     }
 
-    // Handle style-based tracks (drums)
+    // Legacy: Handle old style-based drums (for backwards compatibility)
     if (track.style && synth instanceof Tone.NoiseSynth) {
-      // Different drum patterns could be implemented here
       if (track.style.includes("loop")) {
         // Simple kick pattern on beats 1 and 3
         if (stepIndex % 4 === 0 || stepIndex % 4 === 2) {

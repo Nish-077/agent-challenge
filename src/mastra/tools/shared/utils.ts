@@ -19,6 +19,14 @@ export async function withLock<T>(operation: () => Promise<T>): Promise<T> {
   }
 }
 
+// Drum pattern structure
+export interface DrumPattern {
+  kick: number[];
+  snare: number[];
+  hihat: number[];
+  intensity: "low" | "medium" | "high";
+}
+
 // Track structure
 export interface Track {
   tempo: number;
@@ -32,8 +40,9 @@ export interface Track {
       tracks: {
         [instrument: string]: {
           instrument: string;
-          notes?: (string | null)[];
-          style?: string;
+          notes?: (string | string[] | null)[]; // Support both single notes and chord arrays
+          style?: string; // Legacy
+          drumPattern?: DrumPattern;
           volume?: number;
         };
       };

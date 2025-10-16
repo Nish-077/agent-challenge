@@ -1,6 +1,230 @@
 {
   "tempo": 80,
   "key": "C_minor",
-  "timeline": [],
-  "patterns": {}
+  "timeline": [
+    "verse"
+  ],
+  "patterns": {
+    "verse": {
+      "id": "verse",
+      "length": 8,
+      "tempo": 80,
+      "tracks": {
+        "piano": {
+          "instrument": "piano",
+          "notes": [
+            [
+              "C4",
+              "Eb4",
+              "G4"
+            ],
+            null,
+            [
+              "C4",
+              "Eb4",
+              "G4"
+            ],
+            [
+              "C4",
+              "Eb4",
+              "G4"
+            ],
+            null,
+            [
+              "Bb3",
+              "D4",
+              "F4"
+            ],
+            [
+              "Bb3",
+              "D4",
+              "F4"
+            ],
+            null,
+            [
+              "F3",
+              "Ab3",
+              "C4"
+            ],
+            null,
+            [
+              "F3",
+              "Ab3",
+              "C4"
+            ],
+            [
+              "F3",
+              "Ab3",
+              "C4"
+            ],
+            null,
+            [
+              "G3",
+              "Bb3",
+              "D4"
+            ],
+            [
+              "G3",
+              "Bb3",
+              "D4"
+            ],
+            null,
+            [
+              "C4",
+              "Eb4",
+              "G4"
+            ],
+            null,
+            [
+              "C4",
+              "Eb4",
+              "G4"
+            ],
+            [
+              "C4",
+              "Eb4",
+              "G4"
+            ],
+            null,
+            [
+              "Bb3",
+              "D4",
+              "F4"
+            ],
+            [
+              "Bb3",
+              "D4",
+              "F4"
+            ],
+            null,
+            [
+              "F3",
+              "Ab3",
+              "C4"
+            ],
+            null,
+            [
+              "F3",
+              "Ab3",
+              "C4"
+            ],
+            [
+              "F3",
+              "Ab3",
+              "C4"
+            ],
+            null,
+            [
+              "G3",
+              "Bb3",
+              "D4"
+            ],
+            [
+              "G3",
+              "Bb3",
+              "D4"
+            ],
+            null
+          ]
+        },
+        "bass": {
+          "instrument": "bass",
+          "notes": [
+            "C2",
+            null,
+            "C2",
+            "C2",
+            null,
+            "Bb2",
+            "Bb2",
+            null,
+            "F2",
+            null,
+            "F2",
+            "F2",
+            null,
+            "G2",
+            "G2",
+            null,
+            "C2",
+            null,
+            "C2",
+            "C2",
+            null,
+            "Bb2",
+            "Bb2",
+            null,
+            "F2",
+            null,
+            "F2",
+            "F2",
+            null,
+            "G2",
+            "G2",
+            null
+          ]
+        },
+        "drums": {
+          "instrument": "drums",
+          "drumPattern": {
+            "kick": [
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ],
+            "snare": [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0
+            ],
+            "hihat": [
+              0,
+              0.3,
+              0,
+              0.3,
+              0,
+              0.3,
+              0,
+              0.3,
+              0,
+              0.3,
+              0,
+              0.3,
+              0,
+              0.3,
+              0,
+              0.3
+            ],
+            "intensity": "low"
+          }
+        }
+      }
+    }
+  }
 }
