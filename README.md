@@ -1,307 +1,303 @@
-# Builders' Challenge #3: AI Agents 102
-**Presented by Nosana and Mastra**
+# AI Lo‑Fi Beats Generator (Nosana Agent Challenge)
+**Built with Mastra + Next.js + Tone.js — Deployable to Nosana**
 
 ![Agent](./assets/NosanaBuildersChallenge03.jpg)
 
-## Welcome to the AI Agent Challenge
+This is an AI music agent that generates lo‑fi beats from natural‑language prompts. It features multi‑tool workflows (Producer mode), precise one‑step edits (Composer mode), real‑time UI updates via SSE, and in‑browser playback.
 
-Build and deploy intelligent AI agents using the **Mastra framework** on the **Nosana decentralized compute network**. Whether you're a beginner or an experienced developer, this challenge has something for everyone!
+---
 
-## 🎯 Challenge Overview
+## 🔗 Submission Links
+- Nosana Deployment: `https://dashboard.nosana.com/jobs/13e56HPBZz6Sn3eEm6wN6aKa34ibZbKN7iFapWqAa7Ni`
+- Docker Hub Image: `nishbot/agent-challenge:latest`
+- Video Demo: `https://drive.google.com/file/d/1DtvkK_S1dweZuF-2t6l8CJNhetRqJh6h/view?usp=sharing`
+- Social Post: `https://<your-social-link>`
 
-**Your Mission:** Build an intelligent AI agent with a frontend interface and deploy it on Nosana's decentralized network.
+---
 
-### What You'll Build
+## 🔧 Tools & APIs
 
-Create an AI agent that performs real-world tasks using:
-- **Mastra framework** for agent orchestration
-- **Tool calling** to interact with external services
-- **MCP (Model Context Protocol)** for enhanced capabilities
-- **Custom frontend** to showcase your agent's functionality
+- Mastra (agent orchestration, tool calling)
+- Google Gemini 2.5 Flash (via Mastra model config)
+- Next.js 15 (App Router) + TypeScript
+- Tone.js (browser audio; kick/snare/hihat and piano chords)
+- SSE polling for real-time sync (`/api/track-updates`)
+- File-backed state: `public/track.json`
 
-### Agent Ideas & Examples
+---
 
-The possibilities are endless! Here are some ideas to get you started:
+## 🎵 Music System (What the Agent Generates)
 
-- 🤖 **Personal Assistant** - Schedule management, email drafting, task automation
-- 📊 **Data Analyst Agent** - Fetch financial data, generate insights, create visualizations
-- 🌐 **Web Researcher** - Aggregate information from multiple sources, summarize findings
-- 🛠️ **DevOps Helper** - Monitor services, automate deployments, manage infrastructure
-- 🎨 **Content Creator** - Generate social media posts, blog outlines, marketing copy
-- 🔍 **Smart Search** - Multi-source search with AI-powered result synthesis
-- 💬 **Customer Support Bot** - Answer FAQs, ticket routing, knowledge base queries
+### Moods (5)
+- **sad**: C minor pentatonic; slow (≈75 BPM), dark; legato; soft velocities
+- **melancholic**: minor pentatonic; slightly brighter than sad (≈78 BPM); legato
+- **chill**: minor pentatonic; balanced (≈85 BPM); sustained notes; medium velocities
+- **happy**: C major pentatonic; bright (≈95 BPM); staccato; higher velocities
+- **upbeat**: major pentatonic; energetic (≈105 BPM); punchy staccato
 
-**Be Creative!** The best agents solve real problems in innovative ways.
+Each mood defines:
+- scale, chord progression, default bass roots
+- synth feel: reverb, attack, release, brightness
+- default `tempo`, `velocityRange`, `articulation`
 
-## Getting Started Template
+### Rhythm Patterns (10)
+`simple`, `sparse`, `active`, `shuffled` (swing), `dotted`, `offbeat`, `triplets`, `syncopated`, `steady`, `half_time`
 
-This is a starter template for building AI agents using [Mastra](https://mastra.ai) and [CopilotKit](https://copilotkit.ai). It provides a modern Next.js application with integrated AI capabilities and a beautiful UI.
+Patterns are intensity arrays (0=rest, 0.1–0.9=ghost/dynamics, 1=accent), expanded to pattern length.
 
-## Getting Started
+### Bass Styles (5)
+- `root` (default): sustained root notes following chord changes
+- `walking`: stepwise motion through the scale
+- `arpeggio`: chord tones transposed to bass register (2 octaves down)
+- `octaves`: alternating between root and its octave
+- `pedal`: sustained root, ignores chord changes
 
-### Prerequisites & Registration
+### Piano Modes
+- `chords` (default): returns arrays of chord notes (e.g. `["C4","Eb4","G4"]`)
+- `melody`: single‑note line, 70% chord tones + 30% scale passing tones
 
-To participate in the challenge and get Nosana credits/NOS tokens, complete these steps:
+### Drums
+- 16‑step kick/snare/hihat patterns per mood with `intensity: low|medium|high`
+  - sad: minimal backbeat, soft hats
+  - chill: syncopated lo‑fi kick, laid‑back snare
+  - happy/upbeat: bouncier/four‑on‑the‑floor patterns, brighter hats
 
-1. Register at [SuperTeam](https://earn.superteam.fun/listing/nosana-builders-challenge-agents-102)
-2. Register at the [Luma Page](https://luma.com/zkob1iae)
-3. Star these repos:
-   - [this repo](https://github.com/nosana-ci/agent-challenge)
-   - [Nosana CLI](https://github.com/nosana-ci/nosana-cli)
-   - [Nosana SDK](https://github.com/nosana-ci/nosana-sdk)
-4. Complete [this registration form](https://e86f0b9c.sibforms.com/serve/MUIFALaEjtsXB60SDmm1_DHdt9TOSRCFHOZUSvwK0ANbZDeJH-sBZry2_0YTNi1OjPt_ZNiwr4gGC1DPTji2zdKGJos1QEyVGBzTq_oLalKkeHx3tq2tQtzghyIhYoF4_sFmej1YL1WtnFQyH0y1epowKmDFpDz_EdGKH2cYKTleuTu97viowkIIMqoDgMqTD0uBaZNGwjjsM07T)
+---
 
-### Setup Your Development Environment
+## ⚙️ How Music Generation Works (Tool Calls)
 
-#### **Step 1: Fork, Clone and Quickstart**
+### Producer Mode (multi‑step, creative)
+1) Interpret vibe → pick `mood`, `rhythm`, `tempo`
+2) `createPattern` (e.g., intro/verse)
+3) `addTrackToPattern` (drums) → uses `generateDrumPattern(mood)`
+4) `addTrackToPattern` (piano chords or melody) → `generateNotes` or `generateMelody`
+5) `addTrackToPattern` (bass) → `generateBassLine(mood, rhythm, style)`
+6) Repeat 2–5 for additional sections (verse/chorus)
+7) `updateTimeline(["intro","intro","verse","verse"])`
 
-```bash
-# Fork this repo on GitHub, then clone your fork
-git clone https://github.com/YOUR-USERNAME/agent-challenge
+Each tool writes to `public/track.json`; the UI receives updates via SSE and reflects changes immediately.
 
-cd agent-challenge
+### Composer Mode (single precise step)
+1) Always `getComposition` first to read current state
+2) Execute exactly one action:
+   - `addTrackToPattern` (e.g., add drums to intro)
+   - `updatePatternProperties` (e.g., change tempo/length)
+   - `removeTrackFromPattern`, `clearTimeline`, etc.
 
-cp .env.example .env
+---
 
-pnpm i
+## 🧰 Tools Reference (13 tools)
 
-pnpm run dev:ui      # Start UI server (port 3000)
-pnpm run dev:agent   # Start Mastra agent server (port 4111)
+### Patterns
+- `createPattern({ patternName?, tempo?, length? })`
+  - Creates a section; auto‑names (intro/verse/chorus/…) if not provided
+- `updatePatternProperties({ patternName, tempo?, length? })`
+  - Change per‑pattern tempo/length
+- `duplicatePattern({ patternName, newPatternName })`
+  - Copies a pattern under a new name
+- `deletePattern({ patternName })`
+  - Removes a pattern
+- `deleteAllPatterns()`
+  - Clears all patterns (keeps track defaults)
+
+### Tracks
+- `addTrackToPattern({ patternName, instrument, mood?, rhythm?, trackType?, bassStyle? })`
+  - Instruments: `piano`, `bass`, `drums`
+  - Piano: `chords` (default) or `melody`
+  - Bass styles: `root`, `walking`, `arpeggio`, `octaves`, `pedal`
+- `updateTrackProperties({ patternName, instrument, volume })`
+  - Sets volume (0–1)
+- `removeTrackFromPattern({ patternName, instrument })`
+  - Deletes an instrument from a pattern
+
+### Timeline
+- `updateTimeline({ timeline: string[] })`
+  - Arranges patterns into a full song order
+- `addPatternToTimeline({ patternName, position? })`
+  - Inserts a pattern at a position
+- `removePatternFromTimeline({ patternName?, position? })`
+  - Removes by name or index
+- `clearTimeline()`
+  - Empties the arrangement
+
+### View
+- `getComposition()`
+  - Returns the entire `track.json` composition state
+
+---
+
+## 🧠 Two Modes
+
+- **Producer Mode (Creative, multi‑step)**
+  - Turns vibes like “I want to relax” into full tracks (patterns + drums + piano + bass + timeline)
+  - Max 20 steps, automatic decisions for mood, rhythm, tempo, instrument choices
+- **Composer Mode (Precise, one step)**
+  - Executes a single action like “add drums to intro” or “make verse faster”
+  - Always calls `getComposition` first, then performs one exact tool call
+
+---
+
+## 🔊 Real‑time UX
+
+- Tools write to `public/track.json`
+- SSE endpoint (`/api/track-updates`) polls the file every 100 ms
+- UI reloads the track on each change (unless audio is playing)
+- “Tool Execution History” shows a clean, chronological list after completion
+
+---
+
+## 🧱 Architecture
+
+High‑level flow
+- The frontend sends a natural‑language prompt to `POST /api/music`.
+- The Mastra `musicAgent` decides mode (Producer/Composer) and calls tools.
+- Each tool mutates `public/track.json` using a file mutex (`withLock`).
+- The UI listens to `/api/track-updates` (SSE polling) and reloads the track when it changes.
+- `AudioEngine` (Tone.js) renders the updated composition in the browser.
+
+Key components
+- `music/route.ts` — gateway to the agent; applies the Producer/Composer prompt strategies, returns tool history for the UI.
+- `tools/shared/musicGeneration.ts` — all musical rules: moods, scales, chords, rhythm patterns, bass styles, drum patterns, and generators.
+- `tools/*` — 13 tools that create/modify patterns, tracks and timeline; every write persists to `public/track.json`.
+- `page.tsx` — main UI; mode switch, timeline visualization, SSE client, and transport controls.
+- `ToolCallsDisplay.tsx` — summary bar + full history modal (React Portal) showing ordered tool calls with durations.
+- `AudioEngine.ts` — Tone.js playback with three drum voices and chord playback.
+
+State & sync
+- Composition is a single JSON file: `public/track.json`.
+- SSE endpoint (`/api/track-updates`) polls the file mtime every 100 ms to emit `update` events.
+- The UI reloads the track unless audio is currently playing to avoid glitches.
+
+```
+src/
+  app/
+    api/
+      music/route.ts           # REST gateway to the musicAgent; applies Producer/Composer strategies and returns tool history
+      track-updates/route.ts   # SSE endpoint that polls public/track.json mtime and emits { type: "update" }
+      session/new/route.ts     # Resets public/track.json to a clean composition for "New Session"
+    ToolCallsDisplay.tsx       # Tool execution summary bar + full History modal (React Portal)
+    page.tsx                   # Main UI: mode toggle, transport, timeline view, SSE client, and playback wiring
+  lib/AudioEngine.ts           # Tone.js playback engine (kick/snare/hihat synths; chord playback for piano)
+  mastra/
+    agents/index.ts            # musicAgent definition/model config; registers and exposes the 13 tools
+    tools/*                    # Implementations of pattern/track/timeline/view tools (all mutate track.json under a file lock)
+    tools/shared/*             # musicGeneration (moods/scales/rhythms/bass styles) + utils (read/write/withLock)
+public/track.json              # Single source of truth for the composition; read by UI and written by tools
 ```
 
-Open <http://localhost:3000> to see your agent in action in the frontend.
-Open <http://localhost:4111> to open up the Mastra Agent Playground.
+---
 
-#### **Step 2: Choose Your LLM for Development (Optional)**
+## 🚀 Run Locally
 
-Pick one option below to power your agent during development:
+```bash
+pnpm i
 
-##### Option A: Use Shared Nosana LLM Endpoint (Recommended - No Setup!)
+pnpm run dev:ui      # Start UI (port 3000)
+pnpm run dev:agent   # Start Mastra agent (port 4111)
+```
 
-We provide a free LLM endpoint hosted on Nosana for development. Edit your `.env`:
+Open http://localhost:3000 for the frontend.
+Open http://localhost:4111 for the Mastra Agent Playground.
 
+### Choose your LLM
+
+#### A) Shared Nosana Endpoint (recommended)
 ```env
-# Qwen3:8b - Nosana Endpoint
-# Note baseURL for Ollama needs to be appended with `/api`
 OLLAMA_API_URL=https://3yt39qx97wc9hqwwmylrphi4jsxrngjzxnjakkybnxbw.node.k8s.prd.nos.ci/api
 MODEL_NAME_AT_ENDPOINT=qwen3:8b
 ```
 
-If it goes down, reach out on [Discord](https://discord.com/channels/236263424676331521/1354391113028337664)
-
-##### Option B: Use Local LLM
-
-Run Ollama locally (requires [Ollama installed](https://ollama.com/download)):
-
+#### B) Local Ollama
 ```bash
 ollama pull qwen3:0.6b
 ollama serve
 ```
-
-Edit your `.env`:
 ```env
 OLLAMA_API_URL=http://127.0.0.1:11434/api
 MODEL_NAME_AT_ENDPOINT=qwen3:0.6b
 ```
 
-##### Option C: Use OpenAI
-
-Add to your `.env` and uncomment the OpenAI line in `src/mastra/agents/index.ts`:
-
+#### C) OpenAI / Gemini (used in demo)
 ```env
 OPENAI_API_KEY=your-key-here
 ```
 
-## 🏗️ Implementation Timeline
+---
 
-**Important Dates:**
-- Start Challenge: 10 October
-- Submission Deadline: 24 October
-- Winners Announced: 31 October
-
-### Phase 1: Development
-
-1. **Setup** : Fork repo, install dependencies, choose template
-2. **Build** : Implement your tool functions and agent logic
-3. **Test** : Validate functionality at http://localhost:3000
-
-### Phase 2: Containerization
-
-1. **Clean up**: Remove unused agents from `src/mastra/index.ts`
-2. **Build**: Create Docker container using the provided `Dockerfile`
-3. **Test locally**: Verify container works correctly
+## 🐳 Build & Publish Docker Image
 
 ```bash
-# Build your container (using the provided Dockerfile)
-docker build -t yourusername/agent-challenge:latest .
-
-# Test locally first
-docker run -p 3000:3000 yourusername/agent-challenge:latest 
-
-# Push to Docker Hub
-docker login
-docker push yourusername/agent-challenge:latest
+docker build -t your_username/nosana-mastra-agent:latest .
+docker run -p 3000:3000 your_username/nosana-mastra-agent:latest
+docker login -u <your_username>
+docker push your_username/nosana-mastra-agent:latest
 ```
 
-### Phase 3: Deployment to Nosana
-1. **Deploy your complete stack**: The provided `Dockerfile` will deploy:
-   - Your Mastra agent
-   - Your frontend interface
-   - An LLM to power your agent (all in one container!)
-2. **Verify**: Test your deployed agent on Nosana network
-3. **Capture proof**: Screenshot or get deployment URL for submission
+---
 
-### Phase 4: Video Demo
+## ⚡ Deploy to Nosana
 
-Record a 1-3 minute video demonstrating:
-- Your agent **running on Nosana** (show the deployed version!)
-- Key features and functionality
-- The frontend interface in action
-- Real-world use case demonstration
-- Upload to YouTube, Loom, or similar platform
+1) Open the [Nosana Dashboard](https://dashboard.nosana.com/deploy)
+2) Load job definition `agent-challenge/nos_job_def/nosana_mastra_job_definition.json`
+3) Set your Docker image:
 
-### Phase 5: Documentation
+```json
+{
+  "image": "your_username/nosana-mastra-agent:latest"
+}
+```
 
-Update this README with:
-- Agent description and purpose
-- What tools/APIs your agent uses
-- Setup instructions
-- Environment variables required
-- Example usage and screenshots
+4) Select a GPU, then Deploy
+5) Visit the app URL when the job is running
 
-## ✅ Minimum Requirements
-
-Your submission **must** include:
-
-- [ ] **Agent with Tool Calling** - At least one custom tool/function
-- [ ] **Frontend Interface** - Working UI to interact with your agent
-- [ ] **Deployed on Nosana** - Complete stack running on Nosana network
-- [ ] **Docker Container** - Published to Docker Hub
-- [ ] **Video Demo** - 1-3 minute demonstration
-- [ ] **Updated README** - Clear documentation in your forked repo
-- [ ] **Social Media Post** - Share on X/BlueSky/LinkedIn with #NosanaAgentChallenge
-
-## Submission Process
-
-1. **Complete all requirements** listed above
-2. **Commit all of your changes to the `main` branch of your forked repository**
-   - All your code changes
-   - Updated README
-   - Link to your Docker container
-   - Link to your video demo
-   - Nosana deployment proof
-3. **Social Media Post** (Required): Share your submission on X (Twitter), BlueSky, or LinkedIn
-   - Tag @nosana_ai
-   - Include a brief description of your agent
-   - Add hashtag #NosanaAgentChallenge
-4. **Finalize your submission on the [SuperTeam page](https://earn.superteam.fun/listing/nosana-builders-challenge-agents-102)**
-   - Add your forked GitHub repository link
-   - Add a link to your social media post
-   - Submissions that do not meet all requirements will not be considered
-
-## 🚀 Deploying to Nosana
-
-
-### Using Nosana Dashboard
-1. Open [Nosana Dashboard](https://dashboard.nosana.com/deploy)
-2. Click `Expand` to open the job definition editor
-3. Edit `nos_job_def/nosana_mastra.json` with your Docker image:
-   ```json
-   {
-     "image": "yourusername/agent-challenge:latest"
-   }
-   ```
-4. Copy and paste the edited job definition
-5. Select a GPU
-6. Click `Deploy`
-
-### Using Nosana CLI (Alternative)
+### CLI (alternative)
 ```bash
 npm install -g @nosana/cli
-nosana job post --file ./nos_job_def/nosana_mastra.json --market nvidia-3090 --timeout 30
+nosana job post --file ./nos_job_def/nosana_mastra_job_definition.json --market nvidia-3090 --timeout 30
 ```
 
-## 🏆 Judging Criteria
+---
 
-Submissions evaluated on 4 key areas (25% each):
+## 🧩 Key Files
 
-### 1. Innovation 🎨
-- Originality of agent concept
-- Creative use of AI capabilities
-- Unique problem-solving approach
+```
+agent-challenge/
+  src/app/api/music/route.ts            # Agent endpoint (Producer/Composer prompts)
+  src/app/api/track-updates/route.ts    # SSE polling for realtime sync
+  src/app/api/session/new/route.ts      # Reset track.json (New Session)
+  src/app/ToolCallsDisplay.tsx          # Summary bar + Tool History modal (Portal)
+  src/app/page.tsx                      # Frontend UI
+  src/lib/AudioEngine.ts                # Tone.js playback engine
+  src/mastra/tools/*                    # 13 tools
+  public/track.json                     # Composition state
+```
 
-### 2. Technical Implementation 💻
-- Code quality and organization
-- Proper use of Mastra framework
-- Efficient tool implementation
-- Error handling and robustness
+---
 
-### 3. Nosana Integration ⚡
-- Successful deployment on Nosana
-- Resource efficiency
-- Stability and performance
-- Proper containerization
+## 🧪 Quick Usage
 
-### 4. Real-World Impact 🌍
-- Practical use cases
-- Potential for adoption
-- Clear value proposition
-- Demonstration quality
+1) Click 🆕 New Session
+2) Producer: enter “I want to relax” → Watch UI update in real time
+3) Composer: enter “add drums to intro” → Single precise edit
+4) Click “View Details” → Inspect tool execution history
+5) Click ▶ Play → Hear the result
 
-## 🎁 Prizes
+---
 
-**Top 10 submissions will be rewarded:**
-- 🥇 1st Place: $1,000 USDC
-- 🥈 2nd Place: $750 USDC
-- 🥉 3rd Place: $450 USDC
-- 🏅 4th Place: $200 USDC
-- 🏅 5th-10th Place: $100 USDC each
+## ✅ Submission Checklist
 
-## 📚 Learning Resources
+- [x] Agent with Tool Calling (13 tools)
+- [x] Frontend Interface
+- [x] Deployed on Nosana
+- [x] Docker Container
+- [x] Video Demo
+- [x] Updated README
+- [x] Social Media Post
 
-For more information, check out the following resources:
+## 🔐 Environment Notes
 
-- [Nosana Documentation](https://docs.nosana.io)
-- [Mastra Documentation](https://mastra.ai/en/docs) - Learn more about Mastra and its features
-- [CopilotKit Documentation](https://docs.copilotkit.ai) - Explore CopilotKit's capabilities
-- [Next.js Documentation](https://nextjs.org/docs) - Learn about Next.js features and API
-- [Docker Documentation](https://docs.docker.com)
-- [Nosana CLI](https://github.com/nosana-ci/nosana-cli)
-- [Mastra Agents Overview](https://mastra.ai/en/docs/agents/overview)
-- [Build an AI Stock Agent Guide](https://mastra.ai/en/guides/guide/stock-agent)
-- [Mastra Tool Calling Documentation](https://mastra.ai/en/docs/agents/tools)
+The demo uses Gemini 2.5 Flash via Mastra model config. You can switch providers in `src/mastra/agents/index.ts` and `.env`.
 
-## 🆘 Support & Community
+## 📝 License
 
-### Get Help
-- **Discord**: Join [Nosana Discord](https://nosana.com/discord) 
-- **Dedicated Channel**: [Builders Challenge Dev Chat](https://discord.com/channels/236263424676331521/1354391113028337664)
-- **Twitter**: Follow [@nosana_ai](https://x.com/nosana_ai) for live updates
-
-## 🎉 Ready to Build?
-
-1. **Fork** this repository
-2. **Build** your AI agent
-3. **Deploy** to Nosana
-4. **Present** your creation
-
-Good luck, builders! We can't wait to see the innovative AI agents you create for the Nosana ecosystem.
-
-**Happy Building!** 🚀
-
-## Stay in the Loop
-
-Want access to exclusive builder perks, early challenges, and Nosana credits?
-Subscribe to our newsletter and never miss an update.
-
-👉 [ Join the Nosana Builders Newsletter ](https://e86f0b9c.sibforms.com/serve/MUIFALaEjtsXB60SDmm1_DHdt9TOSRCFHOZUSvwK0ANbZDeJH-sBZry2_0YTNi1OjPt_ZNiwr4gGC1DPTji2zdKGJos1QEyVGBzTq_oLalKkeHx3tq2tQtzghyIhYoF4_sFmej1YL1WtnFQyH0y1epowKmDFpDz_EdGKH2cYKTleuTu97viowkIIMqoDgMqTD0uBaZNGwjjsM07T)
-
-Be the first to know about:
-- 🧠 Upcoming Builders Challenges
-- 💸 New reward opportunities
-- ⚙ Product updates and feature drops
-- 🎁 Early-bird credits and partner perks
-
-Join the Nosana builder community today — and build the future of decentralized AI.
-
-
+MIT — see `LICENSE`.
