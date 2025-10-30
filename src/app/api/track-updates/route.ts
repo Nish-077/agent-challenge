@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { watch } from "fs";
+import { statSync } from "fs";
 import { join } from "path";
 
 export const dynamic = "force-dynamic";
@@ -14,20 +14,34 @@ export async function GET(request: NextRequest) {
         encoder.encode(`data: ${JSON.stringify({ type: "connected" })}\n\n`)
       );
 
-      // Watch the track.json file for changes
+      // Poll track.json for changes every 100ms (more reliable than fs.watch)
       const trackPath = join(process.cwd(), "public", "track.json");
+      let lastModified = 0;
       
-      const watcher = watch(trackPath, (eventType) => {
-        if (eventType === "change") {
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ type: "update" })}\n\n`)
-          );
+      try {
+        lastModified = statSync(trackPath).mtimeMs;
+      } catch (e) {
+        console.error("Error reading track.json initial state:", e);
+      }
+      
+      const pollInterval = setInterval(() => {
+        try {
+          const currentModified = statSync(trackPath).mtimeMs;
+          
+          if (currentModified !== lastModified) {
+            lastModified = currentModified;
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: "update" })}\n\n`)
+            );
+          }
+        } catch (e) {
+          // File might be temporarily locked during write, skip this poll
         }
-      });
+      }, 100); // Poll every 100ms
 
       // Cleanup on client disconnect
       request.signal.addEventListener("abort", () => {
-        watcher.close();
+        clearInterval(pollInterval);
         controller.close();
       });
     },

@@ -40,15 +40,19 @@ export const musicAgent = new Agent({
     clearTimelineTool,
   },
   model: GEMINI_MODEL,
-  instructions: `You are a lo-fi music composer AI. Help users create music by calling the appropriate tools.
+  instructions: `You are a lo-fi music composer AI that helps users create and edit music compositions.
 
-WORKFLOW for new compositions:
-1. Create patterns (intro, verse, chorus, etc.)
-2. Add instruments to each pattern (drums, piano, bass)
-3. Arrange the timeline with updateTimeline
-4. Stop - composition complete!
+⚙️ WORKFLOW GUIDANCE:
+For creative requests (vibe/mood):
+1. Create 2-4 patterns with appropriate moods and tempos
+2. Add complementary instruments to each pattern
+3. Arrange patterns into a timeline
 
-For edits, call only the specific tool the user requests. Use getComposition to view current state.`,
+For technical edits:
+- Call the specific tool requested by the user
+- Use getComposition to check current state
+
+Make thoughtful musical decisions based on the user's intent.`,
   description:
-    "An agent that composes lo-fi beats by interpreting natural language music requests.",
+    "An agent that composes lo-fi beats by interpreting natural language music requests. Supports two modes: Producer (creative) and Composer (precise).",
 });

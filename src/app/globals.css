@@ -85,3 +85,44 @@ html {
     box-shadow: 0 0 40px rgba(139, 92, 246, 0.8);
   }
 }
+
+/* 3D Page flip animation for tool calls - Calendar style flip over Z-axis */
+@keyframes pageFlip {
+  0% {
+    transform: perspective(1200px) rotateX(0deg) translateY(0) scale(1);
+    opacity: 0;
+    transform-origin: top center;
+  }
+  10% {
+    opacity: 1;
+  }
+  25% {
+    transform: perspective(1200px) rotateX(-10deg) translateY(-5px) scale(1.02);
+    transform-origin: top center;
+  }
+  50% {
+    transform: perspective(1200px) rotateX(-90deg) translateY(-20px) scale(1.05);
+    opacity: 0.7;
+    transform-origin: top center;
+  }
+  75% {
+    transform: perspective(1200px) rotateX(-170deg) translateY(-5px) scale(1.02);
+    transform-origin: top center;
+    opacity: 0.9;
+  }
+  100% {
+    transform: perspective(1200px) rotateX(-180deg) translateY(0) scale(1);
+    opacity: 1;
+    transform-origin: top center;
+  }
+}
+
+/* Shadow effect during flip animation */
+@keyframes flipShadow {
+  0%, 100% {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(6, 182, 212, 0.4);
+  }
+}
