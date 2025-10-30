@@ -10,8 +10,8 @@ This is an AI music agent that generates lo‑fi beats from natural‑language p
 ## 🔗 Submission Links
 - Nosana Deployment: `https://dashboard.nosana.com/jobs/13e56HPBZz6Sn3eEm6wN6aKa34ibZbKN7iFapWqAa7Ni`
 - Docker Hub Image: `nishbot/agent-challenge:latest`
-- Video Demo: `https://drive.google.com/file/d/1DtvkK_S1dweZuF-2t6l8CJNhetRqJh6h/view?usp=sharing`
-- Social Post: `https://<your-social-link>`
+- Video Demo: `https://youtu.be/u9sX8LmEtMk`
+- Social Post: `https://x.com/BanakarNishant/status/1984033548735803473`
 
 ---
 
